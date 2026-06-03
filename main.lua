@@ -18,7 +18,7 @@ local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main
 
 local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
 local Window = Library:CreateWindow({
-    Title = 'PLT v0.0.5',
+    Title = 'PLT v0.0.7',
     Center = true,
     AutoShow = true,
 })
