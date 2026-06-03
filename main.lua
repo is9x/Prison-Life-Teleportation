@@ -1,3 +1,5 @@
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local plr = game.Players.LocalPlayer
 
 local remingtonCF = CFrame.new(820.152161, 100.735336, 2229.32764, 0.998268962, 0, 0.0588140972, 0, 1, 0, -0.0588140972, 0, 0.998268962)
@@ -14,15 +16,20 @@ local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main
 local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
 
 local Window = Library:CreateWindow({
-    Title = 'PLT v0.0.6',
+    Title = 'PLT Overhaul v1.0',
     Center = true,
     AutoShow = true,
 })
 
 local Tabs = {
-    Default = Window:AddTab('Default'),
-    Custom = Window:AddTab('Custom Teleports')
+    Main = Window:AddTab('Main'),
+    Custom = Window:AddTab('Custom Locations'),
+    Settings = Window:AddTab('Settings')
 }
+
+-- ==================== TOGGLES / OPTIONS ====================
+local Toggles = {}
+local Options = {}
 
 local function getChar()
     local char = plr.Character
@@ -32,7 +39,7 @@ local function getChar()
     return char, hrp, hum
 end
 
--- Stealthier Teleport
+-- Stealthier Teleport (Anti-Cheat Bypass)
 local function executeTeleport(targetCFrame, isFar, shouldReturn)
     if shouldReturn == nil then shouldReturn = true end
     if tick() - lastTeleport < COOLDOWN then
@@ -40,42 +47,68 @@ local function executeTeleport(targetCFrame, isFar, shouldReturn)
         return
     end
     
-    local _, hrp, hum = getChar()
+    local char, hrp, hum = getChar()
     if not hrp or not hum then return end
 
     lastTeleport = tick()
     local originalCF = hrp.CFrame
-
-    if isFar then
-        -- Very stealthy long distance
-        hrp.CFrame = targetCFrame * CFrame.new(math.random(-2,2), 4 + math.random(), math.random(-2,2))
-        task.wait(0.4 + math.random(1,3)/10)
+    local dist = (hrp.Position - targetCFrame.Position).Magnitude
+    local speed = Options.TweenSpeed and Options.TweenSpeed.Value or 45
+    
+    local function doTween(tCF)
+        local timeToTake = (hrp.Position - tCF.Position).Magnitude / speed
+        if timeToTake < 0.1 then timeToTake = 0.1 end
         
-        local pickup = targetCFrame.Position + targetCFrame.LookVector * (0.8 + math.random()) + targetCFrame.RightVector * (-0.3 + math.random(-2,2)/10)
+        local tweenInfo = TweenInfo.new(timeToTake, Enum.EasingStyle.Linear)
+        local tween = TweenService:Create(hrp, tweenInfo, {CFrame = tCF})
+        
+        local noclipEvent = RunService.Stepped:Connect(function()
+            for _, v in pairs(char:GetDescendants()) do
+                if v:IsA("BasePart") and v.CanCollide then
+                    v.CanCollide = false
+                end
+            end
+        end)
+        
+        local originalGravity = workspace.Gravity
+        workspace.Gravity = 0
+        
+        tween:Play()
+        tween.Completed:Wait()
+        
+        noclipEvent:Disconnect()
+        workspace.Gravity = originalGravity
+    end
+
+    if isFar or dist > 100 then
+        -- Tween to avoid fast magnitude checks
+        doTween(targetCFrame * CFrame.new(0, 3, 0))
+        task.wait(0.1)
+        
+        local pickup = targetCFrame.Position + targetCFrame.LookVector * 1.5
         hum:MoveTo(pickup)
         hum.MoveToFinished:Wait()
         
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
-        task.wait(0.45 + math.random())
+        task.wait(0.5)
         
         if shouldReturn then
-            -- Smooth return with slight variation
-            hrp.CFrame = originalCF * CFrame.new(math.random(-1,1)/5, 0, math.random(-1,1)/5)
+            doTween(originalCF)
         end
     else
-        -- Close range stealth
+        -- Close range (stealth logic)
         hrp.CFrame = targetCFrame * CFrame.new(math.random(-1,1)/3, 2.5, math.random(-1,1)/3)
-        task.wait(0.25 + math.random(1,4)/10)
+        task.wait(0.25)
         
-        local leftPoint = hrp.Position + (hrp.CFrame.RightVector * -0.15) + Vector3.new(math.random(-8,8)/100, 0, math.random(-8,8)/100)
+        local leftPoint = hrp.Position + (hrp.CFrame.RightVector * -0.15)
         hum:MoveTo(leftPoint)
         hum.MoveToFinished:Wait()
         
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
-        task.wait(0.3 + math.random(1,5)/10)
+        task.wait(0.3)
         
         if shouldReturn then
-            hrp.CFrame = originalCF * CFrame.new(math.random(-6,6)/100, 0, math.random(-6,6)/100)
+            hrp.CFrame = originalCF
         end
     end
     
@@ -83,14 +116,16 @@ local function executeTeleport(targetCFrame, isFar, shouldReturn)
 end
 
 -- ==================== UI ====================
-local DefaultGroup = Tabs.Default:AddLeftGroupbox('Gun Teleports')
+local DefaultGroup = Tabs.Main:AddLeftGroupbox('Gun Teleports')
 
 DefaultGroup:AddButton({ Text = 'Get Remington 870', Func = function() executeTeleport(remingtonCF, false) end })
 DefaultGroup:AddButton({ Text = 'Get MP5', Func = function() executeTeleport(mp5CF, false) end })
 DefaultGroup:AddButton({ Text = 'Escape Prison', Func = function() executeTeleport(prisonCF, false) end })
-DefaultGroup:AddButton({ Text = 'Get AK-47', Func = function() executeTeleport(ak47CF, true) end })
+DefaultGroup:AddButton({ Text = 'Get AK-47 (Safe)', Func = function() executeTeleport(ak47CF, true) end })
 
-DefaultGroup:AddButton({
+local UtilGroup = Tabs.Main:AddRightGroupbox('Utilities')
+
+UtilGroup:AddButton({
     Text = 'Load Silent Aim',
     Func = function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/SpyTA/s/refs/heads/main/SilentAim.lua"))()
@@ -98,7 +133,7 @@ DefaultGroup:AddButton({
     end
 })
 
-DefaultGroup:AddButton({
+UtilGroup:AddButton({
     Text = 'Copy Current CFrame',
     Func = function()
         local _, hrp = getChar()
@@ -113,8 +148,21 @@ DefaultGroup:AddButton({
     end
 })
 
+-- Settings Tab
+local SettingsGroup = Tabs.Settings:AddLeftGroupbox('Teleport Settings')
+
+SettingsGroup:AddSlider('TweenSpeed', {
+    Text = 'Tween Speed',
+    Default = 45,
+    Min = 20,
+    Max = 100,
+    Rounding = 0,
+    Compact = false,
+    Tooltip = 'Speed of long-distance teleports (Lower = safer from kicks)'
+})
+
 -- Save System
-local SaveGroup = Tabs.Default:AddLeftGroupbox('Save Location')
+local SaveGroup = Tabs.Custom:AddLeftGroupbox('Save Location')
 local NameInput = SaveGroup:AddInput('NameInput', {Text = 'Name', Placeholder = 'e.g. My Base'})
 local CFrameInput = SaveGroup:AddInput('CFrameInput', {Text = 'CFrame', Placeholder = 'Paste CFrame'})
 
@@ -183,4 +231,4 @@ CustomGroup:AddButton({
 
 refreshCustom()
 
-Library:Notify('PLT v0.0.6 - Stealth Mode Loaded', 6)
+Library:Notify('PLT Overhaul v1.0 - Stealth Mode Loaded', 6)
