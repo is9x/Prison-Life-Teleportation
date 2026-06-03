@@ -6,4 +6,4 @@ A clean and reliable teleportation tool designed specifically for the **Criminal
 
 ### Loadstring
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/is9x/Prison-Life-TPClient/refs/heads/main/main.lua", true))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/is9x/Prison-Life-Teleportation/refs/heads/main/main.lua", true))()
