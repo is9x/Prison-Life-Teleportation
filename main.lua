@@ -21,6 +21,9 @@ local Window = Library:CreateWindow({
     AutoShow = true,
 })
 
+-- Disables Linoria's custom drawing mouse
+Library.ShowCustomCursor = false
+
 local Tabs = {
     Main = Window:AddTab('Main'),
     Custom = Window:AddTab('Custom Locations'),
@@ -55,23 +58,23 @@ local function performTween(char, hrp, tCF)
         end
     end)
     
-    local originalGravity = workspace.Gravity
-    workspace.Gravity = 0
+    -- Anchoring the HumanoidRootPart is REQUIRED to bypass physics-based anti-cheat checks during tweens.
+    hrp.Anchored = true
     
     tween:Play()
     tween.Completed:Wait()
     
     noclipEvent:Disconnect()
-    workspace.Gravity = originalGravity
+    hrp.Anchored = false
 end
 
 local function grabItemLocally(char, hrp, hum, targetCFrame)
     local useStealth = Toggles.UnderMapStealth and Toggles.UnderMapStealth.Value
-    local underOffset = Vector3.new(0, 45, 0)
+    local underOffset = CFrame.new(0, -45, 0)
     
     if useStealth then
-        performTween(char, hrp, hrp.CFrame - underOffset)
-        performTween(char, hrp, targetCFrame - underOffset)
+        performTween(char, hrp, hrp.CFrame * underOffset)
+        performTween(char, hrp, targetCFrame * underOffset)
         performTween(char, hrp, targetCFrame * CFrame.new(0, 3, 0))
     else
         performTween(char, hrp, targetCFrame * CFrame.new(0, 3, 0))
@@ -100,15 +103,15 @@ local function executeTeleport(targetCFrame, isFar, shouldReturn)
     local originalCF = hrp.CFrame
     local dist = (hrp.Position - targetCFrame.Position).Magnitude
     local useStealth = Toggles.UnderMapStealth and Toggles.UnderMapStealth.Value
-    local underOffset = Vector3.new(0, 45, 0)
+    local underOffset = CFrame.new(0, -45, 0)
 
     if isFar or dist > 100 or useStealth then
         grabItemLocally(char, hrp, hum, targetCFrame)
         
         if shouldReturn then
             if useStealth then
-                performTween(char, hrp, hrp.CFrame - underOffset)
-                performTween(char, hrp, originalCF - underOffset)
+                performTween(char, hrp, hrp.CFrame * underOffset)
+                performTween(char, hrp, originalCF * underOffset)
                 performTween(char, hrp, originalCF)
             else
                 performTween(char, hrp, originalCF)
@@ -146,14 +149,14 @@ local function executeCombo()
     lastTeleport = tick()
     local originalCF = hrp.CFrame
     local useStealth = Toggles.UnderMapStealth and Toggles.UnderMapStealth.Value
-    local underOffset = Vector3.new(0, 45, 0)
+    local underOffset = CFrame.new(0, -45, 0)
     
     grabItemLocally(char, hrp, hum, mp5CF)
     grabItemLocally(char, hrp, hum, remingtonCF)
     
     if useStealth then
-        performTween(char, hrp, hrp.CFrame - underOffset)
-        performTween(char, hrp, originalCF - underOffset)
+        performTween(char, hrp, hrp.CFrame * underOffset)
+        performTween(char, hrp, originalCF * underOffset)
         performTween(char, hrp, originalCF)
     else
         performTween(char, hrp, originalCF)
