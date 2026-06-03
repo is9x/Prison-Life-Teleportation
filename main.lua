@@ -17,9 +17,6 @@ local customTeleports = {}
 local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
 
 local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
-local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
-local SaveManager = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
-
 local Window = Library:CreateWindow({
     Title = 'Teleport Hub',
     Center = true,
@@ -31,20 +28,38 @@ local Tabs = {
     Custom = Window:AddTab('Custom Teleports')
 }
 
--- Teleport Function
-local function executeTeleport(targetCFrame)
+-- Improved Safer Teleport Function
+local function executeTeleport(targetCFrame, isFar)
     originalCF = hrp.CFrame
-    hrp.CFrame = targetCFrame
-    task.wait(0.15)
+    
+    if isFar then
+        -- Safer method for long distance (less anomaly flags)
+        hrp.CFrame = targetCFrame * CFrame.new(0, 5, 0)  -- Slight height offset
+        task.wait(0.2)
+        
+        local leftPoint = hrp.Position + (hrp.CFrame.RightVector * -0.15)
+        hum:MoveTo(leftPoint)
+        hum.MoveToFinished:Wait()
+        
+        hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        task.wait(0.35)
+        
+        -- Smooth return
+        hrp.CFrame = originalCF
+    else
+        -- Normal fast method for close positions
+        hrp.CFrame = targetCFrame
+        task.wait(0.15)
 
-    local leftPoint = hrp.Position + (hrp.CFrame.RightVector * -0.1)
-    hum:MoveTo(leftPoint)
-    hum.MoveToFinished:Wait()
+        local leftPoint = hrp.Position + (hrp.CFrame.RightVector * -0.1)
+        hum:MoveTo(leftPoint)
+        hum.MoveToFinished:Wait()
 
-    hum:ChangeState(Enum.HumanoidStateType.Jumping)
-    task.wait(0.25)
+        hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        task.wait(0.25)
 
-    hrp.CFrame = originalCF
+        hrp.CFrame = originalCF
+    end
 end
 
 -- ==================== DEFAULT TAB ====================
@@ -52,22 +67,22 @@ local DefaultGroup = Tabs.Default:AddLeftGroupbox('Gun Teleports')
 
 DefaultGroup:AddButton({
     Text = 'Get Remington 870',
-    Func = function() executeTeleport(remingtonCF) end
+    Func = function() executeTeleport(remingtonCF, false) end
 })
 
 DefaultGroup:AddButton({
     Text = 'Get MP5',
-    Func = function() executeTeleport(mp5CF) end
+    Func = function() executeTeleport(mp5CF, false) end
 })
 
 DefaultGroup:AddButton({
     Text = 'Escape Prison',
-    Func = function() executeTeleport(prisonCF) end
+    Func = function() executeTeleport(prisonCF, false) end
 })
 
 DefaultGroup:AddButton({
     Text = 'Get AK-47',
-    Func = function() executeTeleport(ak47CF) end
+    Func = function() executeTeleport(ak47CF, true) end   -- Uses safer method
 })
 
 DefaultGroup:AddButton({
@@ -75,13 +90,10 @@ DefaultGroup:AddButton({
     Func = function()
         local cf = hrp.CFrame
         local formatted = string.format("CFrame.new(%.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f)",
-            cf.X, cf.Y, cf.Z,
-            cf.XVector.X, cf.XVector.Y, cf.XVector.Z,
-            cf.YVector.X, cf.YVector.Y, cf.YVector.Z,
-            cf.ZVector.X, cf.ZVector.Y, cf.ZVector.Z
-        )
+            cf.X, cf.Y, cf.Z, cf.XVector.X, cf.XVector.Y, cf.XVector.Z,
+            cf.YVector.X, cf.YVector.Y, cf.YVector.Z, cf.ZVector.X, cf.ZVector.Y, cf.ZVector.Z)
         setclipboard(formatted)
-        Library:Notify('CFrame copied to clipboard!', 3)
+        Library:Notify('CFrame copied!', 3)
     end
 })
 
@@ -89,20 +101,18 @@ DefaultGroup:AddButton({
     Text = 'Save New CFrame',
     Func = function()
         Library:Prompt({
-            Title = 'Save Teleport',
-            Content = 'Enter name and CFrame',
-            Placeholder1 = 'Name (e.g. My Base)',
-            Placeholder2 = 'Paste CFrame here',
+            Title = 'Save New Location',
+            Content = '',
+            Placeholder1 = 'Teleport Name',
+            Placeholder2 = 'CFrame Here',
             Callback = function(name, cfText)
                 if name and cfText then
-                    local success, newCF = pcall(function()
-                        return loadstring("return " .. cfText)()
-                    end)
+                    local success, newCF = pcall(function() return loadstring("return "..cfText)() end)
                     if success and typeof(newCF) == "CFrame" then
                         customTeleports[name] = newCF
-                        Library:Notify('Saved: ' .. name, 3)
+                        Library:Notify('Saved: '..name, 3)
                     else
-                        Library:Notify('Invalid CFrame!', 3)
+                        Library:Notify('Invalid CFrame format!', 3)
                     end
                 end
             end
@@ -110,21 +120,19 @@ DefaultGroup:AddButton({
     end
 })
 
--- ==================== CUSTOM TAB ====================
+-- Custom Tab
 local CustomGroup = Tabs.Custom:AddLeftGroupbox('Saved Teleports')
 
 local function refreshCustom()
     CustomGroup:Clear()
-    
     for name, cframe in pairs(customTeleports) do
         CustomGroup:AddButton({
             Text = name,
-            Func = function() executeTeleport(cframe) end
+            Func = function() executeTeleport(cframe, false) end
         })
     end
 end
 
--- Tab changed hook for refresh
 Tabs.Custom.TabButton.MouseButton1Click:Connect(refreshCustom)
 
-Library:Notify('UI Loaded - Fixed buttons!', 4)
+Library:Notify('PLT v0.0.3', 5)
