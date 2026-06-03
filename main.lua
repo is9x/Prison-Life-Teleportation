@@ -16,7 +16,7 @@ local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main
 local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
 
 local Window = Library:CreateWindow({
-    Title = 'PLT Overhaul v1.0',
+    Title = 'PLT v1.1.0',
     Center = true,
     AutoShow = true,
 })
@@ -53,16 +53,7 @@ local function offsetCFrame(cf, offsetVec)
 end
 
 local function grabItemLocally(char, hrp, hum, targetCFrame)
-    local useStealth = Toggles.UnderMapStealth and Toggles.UnderMapStealth.Value
-    local underOffset = Vector3.new(0, -25, 0) -- Safe distance below map, not hitting the void
-    
-    if useStealth then
-        performTeleport(char, hrp, offsetCFrame(hrp.CFrame, underOffset))
-        performTeleport(char, hrp, offsetCFrame(targetCFrame, underOffset))
-        performTeleport(char, hrp, targetCFrame * CFrame.new(0, 3, 0))
-    else
-        performTeleport(char, hrp, targetCFrame * CFrame.new(0, 3, 0))
-    end
+    performTeleport(char, hrp, targetCFrame * CFrame.new(0, 3, 0))
     
     task.wait(0.1)
     local pickup = targetCFrame.Position + targetCFrame.LookVector * 1.5
@@ -86,20 +77,11 @@ local function executeTeleport(targetCFrame, isFar, shouldReturn)
     lastTeleport = tick()
     local originalCF = hrp.CFrame
     local dist = (hrp.Position - targetCFrame.Position).Magnitude
-    local useStealth = Toggles.UnderMapStealth and Toggles.UnderMapStealth.Value
-
-    if isFar or dist > 100 or useStealth then
+    if isFar or dist > 100 then
         grabItemLocally(char, hrp, hum, targetCFrame)
         
         if shouldReturn then
-            if useStealth then
-                local underOffset = Vector3.new(0, -25, 0)
-                performTeleport(char, hrp, offsetCFrame(hrp.CFrame, underOffset))
-                performTeleport(char, hrp, offsetCFrame(originalCF, underOffset))
-                performTeleport(char, hrp, originalCF)
-            else
-                performTeleport(char, hrp, originalCF)
-            end
+            performTeleport(char, hrp, originalCF)
         end
     else
         -- Close range (stealth logic)
@@ -132,20 +114,38 @@ local function executeCombo()
 
     lastTeleport = tick()
     local originalCF = hrp.CFrame
-    local useStealth = Toggles.UnderMapStealth and Toggles.UnderMapStealth.Value
     
     grabItemLocally(char, hrp, hum, mp5CF)
     grabItemLocally(char, hrp, hum, remingtonCF)
-    
-    if useStealth then
-        local underOffset = Vector3.new(0, -25, 0)
-        performTeleport(char, hrp, offsetCFrame(hrp.CFrame, underOffset))
-        performTeleport(char, hrp, offsetCFrame(originalCF, underOffset))
-        performTeleport(char, hrp, originalCF)
-    else
-        performTeleport(char, hrp, originalCF)
-    end
+
+    performTeleport(char, hrp, originalCF)
     Library:Notify('Combo Complete', 2)
+end
+
+local function unloadAllInstances()
+    local playerGui = plr:FindFirstChildOfClass("PlayerGui")
+    local coreGui = game:GetService("CoreGui")
+
+    local function destroyMatching(container)
+        for _, child in ipairs(container:GetChildren()) do
+            local lowerName = child.Name:lower()
+            if child:IsA("ScreenGui") and (lowerName:find("plt") or lowerName:find("linoria") or lowerName:find("multisaveloadgui")) then
+                pcall(function()
+                    child:Destroy()
+                end)
+            end
+        end
+    end
+
+    if playerGui then
+        destroyMatching(playerGui)
+    end
+
+    destroyMatching(coreGui)
+
+    pcall(function()
+        script:Destroy()
+    end)
 end
 
 -- ==================== UI ====================
@@ -185,10 +185,10 @@ UtilGroup:AddButton({
 -- Settings Tab
 local SettingsGroup = Tabs.Settings:AddLeftGroupbox('Teleport Settings')
 
-SettingsGroup:AddToggle('UnderMapStealth', {
-    Text = 'Under-Map Stealth',
-    Default = true,
-    Tooltip = 'Drops you cleanly under the map before teleporting.'
+SettingsGroup:AddButton({
+    Text = 'Unload All Instances',
+    Func = unloadAllInstances,
+    Tooltip = 'Destroys the script GUI and matching instances.'
 })
 
 -- Save System
@@ -261,4 +261,4 @@ CustomGroup:AddButton({
 
 refreshCustom()
 
-Library:Notify('PLT Overhaul v1.0 - Stealth Mode Loaded', 6)
+Library:Notify('PLT Overhaul v1.1.0', 6)

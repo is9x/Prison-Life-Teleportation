@@ -1,6 +1,6 @@
 # Prison Life Teleportation Script
 
-## v0.0.9
+## v0.1.0
 
 A clean and reliable teleportation tool designed specifically for the **Criminal** team in Prison Life. Allows fast access to weapons and key locations with minimal detection risk.
 
