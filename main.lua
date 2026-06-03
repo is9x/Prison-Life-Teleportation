@@ -18,7 +18,7 @@ local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main
 
 local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
 local Window = Library:CreateWindow({
-    Title = 'PLT v0.0.3',
+    Title = 'PLT v0.0.5',
     Center = true,
     AutoShow = true,
 })
@@ -75,26 +75,49 @@ DefaultGroup:AddButton({
     end
 })
 
-DefaultGroup:AddButton({
+-- Save System using Linoria Inputs
+local SaveGroup = Tabs.Default:AddLeftGroupbox('Save Location')
+
+local NameInput = SaveGroup:AddInput('NameInput', {
+    Text = 'Teleport Name',
+    Default = '',
+    Placeholder = 'e.g. My Base',
+    Numeric = false,
+    Finished = true,
+    Callback = function() end
+})
+
+local CFrameInput = SaveGroup:AddInput('CFrameInput', {
+    Text = 'CFrame',
+    Default = '',
+    Placeholder = 'Paste CFrame here',
+    Numeric = false,
+    Finished = true,
+    Callback = function() end
+})
+
+SaveGroup:AddButton({
     Text = 'Save New CFrame',
     Func = function()
-        Library:Prompt({
-            Title = 'Save New Teleport',
-            Content = '',
-            Placeholder1 = 'Name',
-            Placeholder2 = 'CFrame',
-            Callback = function(name, cfText)
-                if name and cfText and name ~= "" then
-                    local success, newCF = pcall(function() return loadstring("return " .. cfText)() end)
-                    if success and typeof(newCF) == "CFrame" then
-                        customTeleports[name] = newCF
-                        Library:Notify('Saved: ' .. name, 3)
-                    else
-                        Library:Notify('Invalid CFrame!', 3)
-                    end
-                end
+        local name = NameInput.Value
+        local cfText = CFrameInput.Value
+        
+        if name and name ~= "" and cfText and cfText ~= "" then
+            local success, newCF = pcall(function()
+                return loadstring("return " .. cfText)()
+            end)
+            
+            if success and typeof(newCF) == "CFrame" then
+                customTeleports[name] = newCF
+                Library:Notify('Successfully saved: ' .. name, 4)
+                NameInput:SetValue('')
+                CFrameInput:SetValue('')
+            else
+                Library:Notify('Invalid CFrame format!', 4)
             end
-        })
+        else
+            Library:Notify('Please fill both fields!', 4)
+        end
     end
 })
 
@@ -103,6 +126,11 @@ local CustomGroup = Tabs.Custom:AddLeftGroupbox('Saved Teleports')
 
 local function refreshCustom()
     CustomGroup:Clear()
+    CustomGroup:AddButton({
+        Text = '🔄 Refresh List',
+        Func = refreshCustom
+    })
+    
     for name, cframe in pairs(customTeleports) do
         CustomGroup:AddButton({
             Text = name,
@@ -111,12 +139,6 @@ local function refreshCustom()
     end
 end
 
--- Refresh when switching to Custom tab (safer method)
-local oldTab = nil
-Window:OnTabChanged(function(tab)
-    if tab == Tabs.Custom then
-        refreshCustom()
-    end
-end)
+refreshCustom() -- Initial load
 
-Library:Notify('PLT v0.0.4 Loaded Successfully', 5)
+Library:Notify('PLT v0.0.7 Loaded Successfully', 5)
