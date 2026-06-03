@@ -33,7 +33,8 @@ local function getChar()
 end
 
 -- Stealthier Teleport
-local function executeTeleport(targetCFrame, isFar)
+local function executeTeleport(targetCFrame, isFar, shouldReturn)
+    if shouldReturn == nil then shouldReturn = true end
     if tick() - lastTeleport < COOLDOWN then
         Library:Notify('Cooldown active... Wait a bit', 3)
         return
@@ -57,8 +58,10 @@ local function executeTeleport(targetCFrame, isFar)
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
         task.wait(0.45 + math.random())
         
-        -- Smooth return with slight variation
-        hrp.CFrame = originalCF * CFrame.new(math.random(-1,1)/5, 0, math.random(-1,1)/5)
+        if shouldReturn then
+            -- Smooth return with slight variation
+            hrp.CFrame = originalCF * CFrame.new(math.random(-1,1)/5, 0, math.random(-1,1)/5)
+        end
     else
         -- Close range stealth
         hrp.CFrame = targetCFrame * CFrame.new(math.random(-1,1)/3, 2.5, math.random(-1,1)/3)
@@ -71,7 +74,9 @@ local function executeTeleport(targetCFrame, isFar)
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
         task.wait(0.3 + math.random(1,5)/10)
         
-        hrp.CFrame = originalCF * CFrame.new(math.random(-6,6)/100, 0, math.random(-6,6)/100)
+        if shouldReturn then
+            hrp.CFrame = originalCF * CFrame.new(math.random(-6,6)/100, 0, math.random(-6,6)/100)
+        end
     end
     
     Library:Notify('Teleport Complete', 2)
@@ -135,15 +140,46 @@ SaveGroup:AddButton({
 -- Custom Tab
 local CustomGroup = Tabs.Custom:AddLeftGroupbox('Saved Teleports')
 
+local AutoReturnToggle = CustomGroup:AddToggle('AutoReturn', {
+    Text = 'Auto-Return',
+    Default = true,
+    Tooltip = 'Enable/Disable automatically teleporting back.'
+})
+
+local CustomDropdown = CustomGroup:AddDropdown('CustomTeleportSelect', {
+    Values = {},
+    Default = 0,
+    Multi = false,
+    Text = 'Select Teleport',
+})
+
 local function refreshCustom()
-    for _, v in ipairs(CustomGroup.Container:GetChildren()) do
-        if v:IsA("TextButton") then v:Destroy() end
+    local names = {}
+    for name, _ in pairs(customTeleports) do
+        table.insert(names, name)
     end
-    CustomGroup:AddButton({ Text = '🔄 Refresh List', Func = refreshCustom })
-    for name, cf in pairs(customTeleports) do
-        CustomGroup:AddButton({ Text = name, Func = function() executeTeleport(cf, false) end })
-    end
+    CustomDropdown:SetValues(names)
 end
+
+CustomGroup:AddButton({
+    Text = '🔄 Refresh List',
+    Func = function()
+        refreshCustom()
+        Library:Notify('List Refreshed', 2)
+    end
+})
+
+CustomGroup:AddButton({
+    Text = '🚀 Teleport',
+    Func = function()
+        local selected = CustomDropdown.Value
+        if selected and customTeleports[selected] then
+            executeTeleport(customTeleports[selected], false, AutoReturnToggle.Value)
+        else
+            Library:Notify('No custom teleport selected!', 2)
+        end
+    end
+})
 
 refreshCustom()
 
