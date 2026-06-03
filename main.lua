@@ -44,11 +44,15 @@ end
 
 local function performTween(char, hrp, tCF)
     local speed = Options.TweenSpeed and Options.TweenSpeed.Value or 45
-    local timeToTake = (hrp.Position - tCF.Position).Magnitude / speed
+    -- Instead of TweenService and Anchoring (which delays replication and causes instant-kick upon unanchoring),
+    -- we use an incremental Heartbeat step to safely glide the character through the world.
+    
+    local dist = (hrp.Position - tCF.Position).Magnitude
+    local timeToTake = dist / speed
     if timeToTake < 0.1 then timeToTake = 0.1 end
     
-    local tweenInfo = TweenInfo.new(timeToTake, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = tCF})
+    local startTime = tick()
+    local startCF = hrp.CFrame
     
     local noclipEvent = RunService.Stepped:Connect(function()
         for _, v in pairs(char:GetDescendants()) do
@@ -58,24 +62,38 @@ local function performTween(char, hrp, tCF)
         end
     end)
     
-    -- Anchoring the HumanoidRootPart is REQUIRED to bypass physics-based anti-cheat checks during tweens.
-    hrp.Anchored = true
+    local originalGravity = workspace.Gravity
+    workspace.Gravity = 0
     
-    tween:Play()
-    tween.Completed:Wait()
+    -- Smoothly incrementally teleport frame-by-frame so the server accepts the position updates
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        local elapsed = tick() - startTime
+        local alpha = math.clamp(elapsed / timeToTake, 0, 1)
+        hrp.CFrame = startCF:Lerp(tCF, alpha)
+        
+        -- To prevent falling/physics glitches, freeze velocity
+        hrp.Velocity = Vector3.new(0, 0, 0)
+        hrp.RotVelocity = Vector3.new(0, 0, 0)
+        
+        if alpha >= 1 then
+            connection:Disconnect()
+        end
+    end)
+    
+    repeat task.wait() until tick() - startTime >= timeToTake
     
     noclipEvent:Disconnect()
-    hrp.Anchored = false
+    workspace.Gravity = originalGravity
 end
 
 local function offsetCFrame(cf, offsetVec)
-    -- Safely strips rotation matrix and adds strict world-space Vector3 to prevent sliding through walls diagonally
-    return cf - cf.Position + (cf.Position + offsetVec)
+    return cf + offsetVec
 end
 
 local function grabItemLocally(char, hrp, hum, targetCFrame)
     local useStealth = Toggles.UnderMapStealth and Toggles.UnderMapStealth.Value
-    local underOffset = Vector3.new(0, -120, 0)
+    local underOffset = Vector3.new(0, -25, 0) -- Safe distance below map, not hitting the void
     
     if useStealth then
         performTween(char, hrp, offsetCFrame(hrp.CFrame, underOffset))
@@ -90,7 +108,7 @@ local function grabItemLocally(char, hrp, hum, targetCFrame)
     hum:MoveTo(pickup)
     hum.MoveToFinished:Wait()
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
-    task.wait(0.5)
+    task.wait(0.4)
 end
 
 -- Stealthier Teleport (Anti-Cheat Bypass)
@@ -114,7 +132,7 @@ local function executeTeleport(targetCFrame, isFar, shouldReturn)
         
         if shouldReturn then
             if useStealth then
-                local underOffset = Vector3.new(0, -120, 0)
+                local underOffset = Vector3.new(0, -25, 0)
                 performTween(char, hrp, offsetCFrame(hrp.CFrame, underOffset))
                 performTween(char, hrp, offsetCFrame(originalCF, underOffset))
                 performTween(char, hrp, originalCF)
@@ -159,7 +177,7 @@ local function executeCombo()
     grabItemLocally(char, hrp, hum, remingtonCF)
     
     if useStealth then
-        local underOffset = Vector3.new(0, -120, 0)
+        local underOffset = Vector3.new(0, -25, 0)
         performTween(char, hrp, offsetCFrame(hrp.CFrame, underOffset))
         performTween(char, hrp, offsetCFrame(originalCF, underOffset))
         performTween(char, hrp, originalCF)
