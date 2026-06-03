@@ -39,6 +39,52 @@ local function getChar()
     return char, hrp, hum
 end
 
+local function performTween(char, hrp, tCF)
+    local speed = Options.TweenSpeed and Options.TweenSpeed.Value or 45
+    local timeToTake = (hrp.Position - tCF.Position).Magnitude / speed
+    if timeToTake < 0.1 then timeToTake = 0.1 end
+    
+    local tweenInfo = TweenInfo.new(timeToTake, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = tCF})
+    
+    local noclipEvent = RunService.Stepped:Connect(function()
+        for _, v in pairs(char:GetDescendants()) do
+            if v:IsA("BasePart") and v.CanCollide then
+                v.CanCollide = false
+            end
+        end
+    end)
+    
+    local originalGravity = workspace.Gravity
+    workspace.Gravity = 0
+    
+    tween:Play()
+    tween.Completed:Wait()
+    
+    noclipEvent:Disconnect()
+    workspace.Gravity = originalGravity
+end
+
+local function grabItemLocally(char, hrp, hum, targetCFrame)
+    local useStealth = Toggles.UnderMapStealth and Toggles.UnderMapStealth.Value
+    local underOffset = Vector3.new(0, 45, 0)
+    
+    if useStealth then
+        performTween(char, hrp, hrp.CFrame - underOffset)
+        performTween(char, hrp, targetCFrame - underOffset)
+        performTween(char, hrp, targetCFrame * CFrame.new(0, 3, 0))
+    else
+        performTween(char, hrp, targetCFrame * CFrame.new(0, 3, 0))
+    end
+    
+    task.wait(0.1)
+    local pickup = targetCFrame.Position + targetCFrame.LookVector * 1.5
+    hum:MoveTo(pickup)
+    hum.MoveToFinished:Wait()
+    hum:ChangeState(Enum.HumanoidStateType.Jumping)
+    task.wait(0.5)
+end
+
 -- Stealthier Teleport (Anti-Cheat Bypass)
 local function executeTeleport(targetCFrame, isFar, shouldReturn)
     if shouldReturn == nil then shouldReturn = true end
@@ -53,47 +99,20 @@ local function executeTeleport(targetCFrame, isFar, shouldReturn)
     lastTeleport = tick()
     local originalCF = hrp.CFrame
     local dist = (hrp.Position - targetCFrame.Position).Magnitude
-    local speed = Options.TweenSpeed and Options.TweenSpeed.Value or 45
-    
-    local function doTween(tCF)
-        local timeToTake = (hrp.Position - tCF.Position).Magnitude / speed
-        if timeToTake < 0.1 then timeToTake = 0.1 end
-        
-        local tweenInfo = TweenInfo.new(timeToTake, Enum.EasingStyle.Linear)
-        local tween = TweenService:Create(hrp, tweenInfo, {CFrame = tCF})
-        
-        local noclipEvent = RunService.Stepped:Connect(function()
-            for _, v in pairs(char:GetDescendants()) do
-                if v:IsA("BasePart") and v.CanCollide then
-                    v.CanCollide = false
-                end
-            end
-        end)
-        
-        local originalGravity = workspace.Gravity
-        workspace.Gravity = 0
-        
-        tween:Play()
-        tween.Completed:Wait()
-        
-        noclipEvent:Disconnect()
-        workspace.Gravity = originalGravity
-    end
+    local useStealth = Toggles.UnderMapStealth and Toggles.UnderMapStealth.Value
+    local underOffset = Vector3.new(0, 45, 0)
 
-    if isFar or dist > 100 then
-        -- Tween to avoid fast magnitude checks
-        doTween(targetCFrame * CFrame.new(0, 3, 0))
-        task.wait(0.1)
-        
-        local pickup = targetCFrame.Position + targetCFrame.LookVector * 1.5
-        hum:MoveTo(pickup)
-        hum.MoveToFinished:Wait()
-        
-        hum:ChangeState(Enum.HumanoidStateType.Jumping)
-        task.wait(0.5)
+    if isFar or dist > 100 or useStealth then
+        grabItemLocally(char, hrp, hum, targetCFrame)
         
         if shouldReturn then
-            doTween(originalCF)
+            if useStealth then
+                performTween(char, hrp, hrp.CFrame - underOffset)
+                performTween(char, hrp, originalCF - underOffset)
+                performTween(char, hrp, originalCF)
+            else
+                performTween(char, hrp, originalCF)
+            end
         end
     else
         -- Close range (stealth logic)
@@ -115,11 +134,39 @@ local function executeTeleport(targetCFrame, isFar, shouldReturn)
     Library:Notify('Teleport Complete', 2)
 end
 
+local function executeCombo()
+    if tick() - lastTeleport < COOLDOWN then
+        Library:Notify('Cooldown active... Wait a bit', 3)
+        return
+    end
+    
+    local char, hrp, hum = getChar()
+    if not hrp or not hum then return end
+
+    lastTeleport = tick()
+    local originalCF = hrp.CFrame
+    local useStealth = Toggles.UnderMapStealth and Toggles.UnderMapStealth.Value
+    local underOffset = Vector3.new(0, 45, 0)
+    
+    grabItemLocally(char, hrp, hum, mp5CF)
+    grabItemLocally(char, hrp, hum, remingtonCF)
+    
+    if useStealth then
+        performTween(char, hrp, hrp.CFrame - underOffset)
+        performTween(char, hrp, originalCF - underOffset)
+        performTween(char, hrp, originalCF)
+    else
+        performTween(char, hrp, originalCF)
+    end
+    Library:Notify('Combo Complete', 2)
+end
+
 -- ==================== UI ====================
 local DefaultGroup = Tabs.Main:AddLeftGroupbox('Gun Teleports')
 
 DefaultGroup:AddButton({ Text = 'Get Remington 870', Func = function() executeTeleport(remingtonCF, false) end })
 DefaultGroup:AddButton({ Text = 'Get MP5', Func = function() executeTeleport(mp5CF, false) end })
+DefaultGroup:AddButton({ Text = 'Get MP5 + Remington 870', Func = executeCombo })
 DefaultGroup:AddButton({ Text = 'Escape Prison', Func = function() executeTeleport(prisonCF, false) end })
 DefaultGroup:AddButton({ Text = 'Get AK-47 (Safe)', Func = function() executeTeleport(ak47CF, true) end })
 
@@ -159,6 +206,12 @@ SettingsGroup:AddSlider('TweenSpeed', {
     Rounding = 0,
     Compact = false,
     Tooltip = 'Speed of long-distance teleports (Lower = safer from kicks)'
+})
+
+SettingsGroup:AddToggle('UnderMapStealth', {
+    Text = 'Under-Map Stealth',
+    Default = true,
+    Tooltip = 'Tweens you perfectly under the map before popping up to grab the item.'
 })
 
 -- Save System
