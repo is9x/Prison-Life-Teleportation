@@ -12,7 +12,7 @@ local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main
 local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
 
 local Window = Library:CreateWindow({
-    Title = 'PLT v0.0.8',
+    Title = 'PLT v0.0.9',
     Center = true,
     AutoShow = true,
 })
@@ -30,7 +30,7 @@ local function getChar()
     return char, hrp, hum
 end
 
--- Improved Teleport Function
+-- Teleport Function
 local function executeTeleport(targetCFrame, isFar)
     local _, hrp, hum = getChar()
     if not hrp or not hum then return end
@@ -40,22 +40,18 @@ local function executeTeleport(targetCFrame, isFar)
     if isFar then
         hrp.CFrame = targetCFrame * CFrame.new(0, 3.5, 0)
         task.wait(0.35)
-        
         local pickupPoint = targetCFrame.Position + (targetCFrame.LookVector * 1) + (targetCFrame.RightVector * -0.4)
         hum:MoveTo(pickupPoint)
         hum.MoveToFinished:Wait()
-        
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
         task.wait(0.4)
         hrp.CFrame = originalCF
     else
         hrp.CFrame = targetCFrame
         task.wait(0.2)
-        
         local leftPoint = hrp.Position + (hrp.CFrame.RightVector * -0.12)
         hum:MoveTo(leftPoint)
         hum.MoveToFinished:Wait()
-        
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
         task.wait(0.3)
         hrp.CFrame = originalCF
@@ -69,6 +65,15 @@ DefaultGroup:AddButton({ Text = 'Get Remington 870', Func = function() executeTe
 DefaultGroup:AddButton({ Text = 'Get MP5', Func = function() executeTeleport(mp5CF, false) end })
 DefaultGroup:AddButton({ Text = 'Escape Prison', Func = function() executeTeleport(prisonCF, false) end })
 DefaultGroup:AddButton({ Text = 'Get AK-47', Func = function() executeTeleport(ak47CF, true) end })
+
+-- Silent Aim Button
+DefaultGroup:AddButton({
+    Text = 'Load Silent Aim',
+    Func = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/SpyTA/s/refs/heads/main/SilentAim.lua"))()
+        Library:Notify('Silent Aim Loaded', 4)
+    end
+})
 
 DefaultGroup:AddButton({
     Text = 'Copy Current CFrame',
@@ -114,7 +119,6 @@ SaveGroup:AddButton({
 local CustomGroup = Tabs.Custom:AddLeftGroupbox('Saved Teleports')
 
 local function refreshCustom()
-    CustomGroup:Clear()  -- This was causing error, replaced safely
     for _, v in ipairs(CustomGroup.Container:GetChildren()) do
         if v:IsA("TextButton") then v:Destroy() end
     end
@@ -131,4 +135,4 @@ end
 
 refreshCustom()
 
-Library:Notify('PLT v0.0.8 Loaded Successfully', 5)
+Library:Notify('PLT v0.0.9 Loaded Successfully', 5)
