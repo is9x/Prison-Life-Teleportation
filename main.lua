@@ -42,49 +42,10 @@ local function getChar()
     return char, hrp, hum
 end
 
-local function performTween(char, hrp, tCF)
-    local speed = Options.TweenSpeed and Options.TweenSpeed.Value or 45
-    -- Instead of TweenService and Anchoring (which delays replication and causes instant-kick upon unanchoring),
-    -- we use an incremental Heartbeat step to safely glide the character through the world.
-    
-    local dist = (hrp.Position - tCF.Position).Magnitude
-    local timeToTake = dist / speed
-    if timeToTake < 0.1 then timeToTake = 0.1 end
-    
-    local startTime = tick()
-    local startCF = hrp.CFrame
-    
-    local noclipEvent = RunService.Stepped:Connect(function()
-        for _, v in pairs(char:GetDescendants()) do
-            if v:IsA("BasePart") and v.CanCollide then
-                v.CanCollide = false
-            end
-        end
-    end)
-    
-    local originalGravity = workspace.Gravity
-    workspace.Gravity = 0
-    
-    -- Smoothly incrementally teleport frame-by-frame so the server accepts the position updates
-    local connection
-    connection = RunService.Heartbeat:Connect(function()
-        local elapsed = tick() - startTime
-        local alpha = math.clamp(elapsed / timeToTake, 0, 1)
-        hrp.CFrame = startCF:Lerp(tCF, alpha)
-        
-        -- To prevent falling/physics glitches, freeze velocity
-        hrp.Velocity = Vector3.new(0, 0, 0)
-        hrp.RotVelocity = Vector3.new(0, 0, 0)
-        
-        if alpha >= 1 then
-            connection:Disconnect()
-        end
-    end)
-    
-    repeat task.wait() until tick() - startTime >= timeToTake
-    
-    noclipEvent:Disconnect()
-    workspace.Gravity = originalGravity
+local function performTeleport(char, hrp, tCF)
+    local targetPos = tCF.Position
+    local ori = hrp.CFrame - hrp.CFrame.Position
+    hrp.CFrame = CFrame.new(targetPos) * ori
 end
 
 local function offsetCFrame(cf, offsetVec)
@@ -96,11 +57,11 @@ local function grabItemLocally(char, hrp, hum, targetCFrame)
     local underOffset = Vector3.new(0, -25, 0) -- Safe distance below map, not hitting the void
     
     if useStealth then
-        performTween(char, hrp, offsetCFrame(hrp.CFrame, underOffset))
-        performTween(char, hrp, offsetCFrame(targetCFrame, underOffset))
-        performTween(char, hrp, targetCFrame * CFrame.new(0, 3, 0))
+        performTeleport(char, hrp, offsetCFrame(hrp.CFrame, underOffset))
+        performTeleport(char, hrp, offsetCFrame(targetCFrame, underOffset))
+        performTeleport(char, hrp, targetCFrame * CFrame.new(0, 3, 0))
     else
-        performTween(char, hrp, targetCFrame * CFrame.new(0, 3, 0))
+        performTeleport(char, hrp, targetCFrame * CFrame.new(0, 3, 0))
     end
     
     task.wait(0.1)
@@ -133,11 +94,11 @@ local function executeTeleport(targetCFrame, isFar, shouldReturn)
         if shouldReturn then
             if useStealth then
                 local underOffset = Vector3.new(0, -25, 0)
-                performTween(char, hrp, offsetCFrame(hrp.CFrame, underOffset))
-                performTween(char, hrp, offsetCFrame(originalCF, underOffset))
-                performTween(char, hrp, originalCF)
+                performTeleport(char, hrp, offsetCFrame(hrp.CFrame, underOffset))
+                performTeleport(char, hrp, offsetCFrame(originalCF, underOffset))
+                performTeleport(char, hrp, originalCF)
             else
-                performTween(char, hrp, originalCF)
+                performTeleport(char, hrp, originalCF)
             end
         end
     else
@@ -178,11 +139,11 @@ local function executeCombo()
     
     if useStealth then
         local underOffset = Vector3.new(0, -25, 0)
-        performTween(char, hrp, offsetCFrame(hrp.CFrame, underOffset))
-        performTween(char, hrp, offsetCFrame(originalCF, underOffset))
-        performTween(char, hrp, originalCF)
+        performTeleport(char, hrp, offsetCFrame(hrp.CFrame, underOffset))
+        performTeleport(char, hrp, offsetCFrame(originalCF, underOffset))
+        performTeleport(char, hrp, originalCF)
     else
-        performTween(char, hrp, originalCF)
+        performTeleport(char, hrp, originalCF)
     end
     Library:Notify('Combo Complete', 2)
 end
@@ -224,20 +185,10 @@ UtilGroup:AddButton({
 -- Settings Tab
 local SettingsGroup = Tabs.Settings:AddLeftGroupbox('Teleport Settings')
 
-SettingsGroup:AddSlider('TweenSpeed', {
-    Text = 'Tween Speed',
-    Default = 45,
-    Min = 20,
-    Max = 100,
-    Rounding = 0,
-    Compact = false,
-    Tooltip = 'Speed of long-distance teleports (Lower = safer from kicks)'
-})
-
 SettingsGroup:AddToggle('UnderMapStealth', {
     Text = 'Under-Map Stealth',
     Default = true,
-    Tooltip = 'Tweens you perfectly under the map before popping up to grab the item.'
+    Tooltip = 'Drops you cleanly under the map before teleporting.'
 })
 
 -- Save System
