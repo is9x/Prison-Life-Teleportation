@@ -1,11 +1,5 @@
 local plr = game.Players.LocalPlayer
-local char = plr.Character or plr.CharacterAdded:Wait()
-local hrp = char:WaitForChild("HumanoidRootPart")
-local hum = char:WaitForChild("Humanoid")
 
-local originalCF = hrp.CFrame
-
--- Positions
 local remingtonCF = CFrame.new(820.152161, 100.735336, 2229.32764, 0.998268962, 0, 0.0588140972, 0, 1, 0, -0.0588140972, 0, 0.998268962)
 local mp5CF = CFrame.new(813.612366, 100.735336, 2229.425537, 0.999381, 0, -0.035189, 0, 1, 0, 0.035189, 0, 0.999381)
 local prisonCF = CFrame.new(412.567932, 90.199669, 2388.806885, -0.199368, 0, -0.979925, 0, 1, 0, 0.979925, 0, -0.199368)
@@ -15,10 +9,10 @@ local customTeleports = {}
 
 -- ==================== LINORIA LIB ====================
 local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
-
 local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
+
 local Window = Library:CreateWindow({
-    Title = 'PLT v0.0.7',
+    Title = 'PLT v0.0.8',
     Center = true,
     AutoShow = true,
 })
@@ -28,27 +22,42 @@ local Tabs = {
     Custom = Window:AddTab('Custom Teleports')
 }
 
--- Safer Teleport Function
+-- Get Character Function
+local function getChar()
+    local char = plr.Character or plr.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart", 5)
+    local hum = char:WaitForChild("Humanoid", 5)
+    return char, hrp, hum
+end
+
+-- Improved Teleport Function
 local function executeTeleport(targetCFrame, isFar)
-    originalCF = hrp.CFrame
+    local _, hrp, hum = getChar()
+    if not hrp or not hum then return end
+    
+    local originalCF = hrp.CFrame
     
     if isFar then
-        hrp.CFrame = targetCFrame * CFrame.new(0, 5, 0)
-        task.wait(0.25)
-        local leftPoint = hrp.Position + (hrp.CFrame.RightVector * -0.15)
-        hum:MoveTo(leftPoint)
+        hrp.CFrame = targetCFrame * CFrame.new(0, 3.5, 0)
+        task.wait(0.35)
+        
+        local pickupPoint = targetCFrame.Position + (targetCFrame.LookVector * 1) + (targetCFrame.RightVector * -0.4)
+        hum:MoveTo(pickupPoint)
         hum.MoveToFinished:Wait()
+        
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
         task.wait(0.4)
         hrp.CFrame = originalCF
     else
         hrp.CFrame = targetCFrame
-        task.wait(0.15)
-        local leftPoint = hrp.Position + (hrp.CFrame.RightVector * -0.1)
+        task.wait(0.2)
+        
+        local leftPoint = hrp.Position + (hrp.CFrame.RightVector * -0.12)
         hum:MoveTo(leftPoint)
         hum.MoveToFinished:Wait()
+        
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
-        task.wait(0.25)
+        task.wait(0.3)
         hrp.CFrame = originalCF
     end
 end
@@ -64,59 +73,39 @@ DefaultGroup:AddButton({ Text = 'Get AK-47', Func = function() executeTeleport(a
 DefaultGroup:AddButton({
     Text = 'Copy Current CFrame',
     Func = function()
+        local _, hrp = getChar()
+        if not hrp then return end
         local cf = hrp.CFrame
         local formatted = string.format("CFrame.new(%.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f)",
-            cf.X, cf.Y, cf.Z,
-            cf.XVector.X, cf.XVector.Y, cf.XVector.Z,
-            cf.YVector.X, cf.YVector.Y, cf.YVector.Z,
-            cf.ZVector.X, cf.ZVector.Y, cf.ZVector.Z)
+            cf.X, cf.Y, cf.Z, cf.XVector.X, cf.XVector.Y, cf.XVector.Z,
+            cf.YVector.X, cf.YVector.Y, cf.YVector.Z, cf.ZVector.X, cf.ZVector.Y, cf.ZVector.Z)
         setclipboard(formatted)
-        Library:Notify('CFrame copied to clipboard!', 3)
+        Library:Notify('CFrame copied!', 3)
     end
 })
 
--- Save System using Linoria Inputs
+-- Save System
 local SaveGroup = Tabs.Default:AddLeftGroupbox('Save Location')
-
-local NameInput = SaveGroup:AddInput('NameInput', {
-    Text = 'Teleport Name',
-    Default = '',
-    Placeholder = 'e.g. My Base',
-    Numeric = false,
-    Finished = true,
-    Callback = function() end
-})
-
-local CFrameInput = SaveGroup:AddInput('CFrameInput', {
-    Text = 'CFrame',
-    Default = '',
-    Placeholder = 'Paste CFrame here',
-    Numeric = false,
-    Finished = true,
-    Callback = function() end
-})
+local NameInput = SaveGroup:AddInput('NameInput', {Text = 'Name', Placeholder = 'e.g. My Base'})
+local CFrameInput = SaveGroup:AddInput('CFrameInput', {Text = 'CFrame', Placeholder = 'Paste CFrame'})
 
 SaveGroup:AddButton({
     Text = 'Save New CFrame',
     Func = function()
         local name = NameInput.Value
         local cfText = CFrameInput.Value
-        
         if name and name ~= "" and cfText and cfText ~= "" then
-            local success, newCF = pcall(function()
-                return loadstring("return " .. cfText)()
-            end)
-            
+            local success, newCF = pcall(function() return loadstring("return " .. cfText)() end)
             if success and typeof(newCF) == "CFrame" then
                 customTeleports[name] = newCF
-                Library:Notify('Successfully saved: ' .. name, 4)
+                Library:Notify('Saved: ' .. name, 4)
                 NameInput:SetValue('')
                 CFrameInput:SetValue('')
             else
-                Library:Notify('Invalid CFrame format!', 4)
+                Library:Notify('Invalid CFrame!', 4)
             end
         else
-            Library:Notify('Please fill both fields!', 4)
+            Library:Notify('Fill both fields!', 4)
         end
     end
 })
@@ -125,11 +114,12 @@ SaveGroup:AddButton({
 local CustomGroup = Tabs.Custom:AddLeftGroupbox('Saved Teleports')
 
 local function refreshCustom()
-    CustomGroup:Clear()
-    CustomGroup:AddButton({
-        Text = '🔄 Refresh List',
-        Func = refreshCustom
-    })
+    CustomGroup:Clear()  -- This was causing error, replaced safely
+    for _, v in ipairs(CustomGroup.Container:GetChildren()) do
+        if v:IsA("TextButton") then v:Destroy() end
+    end
+    
+    CustomGroup:AddButton({ Text = '🔄 Refresh List', Func = refreshCustom })
     
     for name, cframe in pairs(customTeleports) do
         CustomGroup:AddButton({
@@ -139,6 +129,6 @@ local function refreshCustom()
     end
 end
 
-refreshCustom() -- Initial load
+refreshCustom()
 
-Library:Notify('PLT v0.0.7 Loaded Successfully', 5)
+Library:Notify('PLT v0.0.8 Loaded Successfully', 5)
